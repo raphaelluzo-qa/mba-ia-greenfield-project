@@ -128,4 +128,31 @@ describe('exportSpec (integration)', () => {
       }
     }
   });
+
+  it('includes the video upload and playback paths', () => {
+    const paths = document.paths as Record<string, Record<string, unknown>>;
+    expect(paths['/videos/drafts']?.post).toBeDefined();
+    expect(paths['/videos/{id}/parts']?.post).toBeDefined();
+    expect(paths['/videos/{id}/complete']?.post).toBeDefined();
+    expect(paths['/videos/{publicKey}/stream']?.get).toBeDefined();
+    expect(paths['/videos/{publicKey}/download']?.get).toBeDefined();
+  });
+
+  it('marks video mutations as protected and playback as public', () => {
+    const paths = document.paths as Record<
+      string,
+      Record<string, Record<string, unknown>>
+    >;
+    for (const path of [
+      '/videos/drafts',
+      '/videos/{id}/parts',
+      '/videos/{id}/complete',
+    ]) {
+      expect(paths[path]?.post.security).toEqual(
+        expect.arrayContaining([expect.objectContaining({ 'access-token': [] })]),
+      );
+    }
+    expect(paths['/videos/{publicKey}/stream']?.get.security).toBeUndefined();
+    expect(paths['/videos/{publicKey}/download']?.get.security).toBeUndefined();
+  });
 });

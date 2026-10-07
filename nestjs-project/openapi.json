@@ -438,6 +438,92 @@
           "auth"
         ]
       }
+    },
+    "/videos/drafts": {
+      "post": {
+        "summary": "Create a video draft",
+        "responses": {
+          "201": {
+            "description": "Draft and presigned upload plan created"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/videos/{id}/parts": {
+      "post": {
+        "summary": "Sign an upload part",
+        "responses": {
+          "201": {
+            "description": "Part URL created"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/videos/{id}/complete": {
+      "post": {
+        "summary": "Complete a video upload",
+        "responses": {
+          "202": {
+            "description": "Processing queued or already started"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/videos/{publicKey}/stream": {
+      "get": {
+        "summary": "Stream a ready video",
+        "responses": {
+          "200": {
+            "description": "Video stream"
+          },
+          "206": {
+            "description": "Partial video stream"
+          }
+        }
+      }
+    },
+    "/videos/{publicKey}/download": {
+      "get": {
+        "summary": "Download a ready video",
+        "responses": {
+          "200": {
+            "description": "Video download"
+          },
+          "206": {
+            "description": "Partial video download"
+          }
+        }
+      }
+    },
+    "/videos/{id}": {
+      "get": {
+        "summary": "Inspect an owned video",
+        "responses": {
+          "200": {
+            "description": "Video details"
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
     }
   },
   "info": {
