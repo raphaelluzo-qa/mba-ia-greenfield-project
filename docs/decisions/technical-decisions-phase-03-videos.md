@@ -6,7 +6,9 @@ Esta fase entrega somente o pipeline de upload e processamento no backend/worker
 
 ## TD-03.1 — Fila
 
-**Decisão:** BullMQ sobre Redis, com `jobId=video:<uuid>`, três tentativas, backoff exponencial de 5 segundos e worker separado.
+**Decisão:** BullMQ sobre Redis, com `jobId=video-<uuid>`, três tentativas, backoff exponencial de 5 segundos e worker separado.
+
+**Correção de compatibilidade (2026-11-10):** o separador anterior `:` era rejeitado por BullMQ 6.3.11 (`Custom Id cannot contain :`). O hífen mantém a identidade determinística por vídeo e é aceito pelo contrato de custom job IDs.
 
 **Alternativas:** RabbitMQ exigiria outra semântica de job e mais infraestrutura; uma tabela de jobs não oferece o retry/claim operacional necessário. A documentação do BullMQ confirma integração NestJS e jobs idempotentes via job IDs.
 
@@ -24,7 +26,7 @@ Esta fase entrega somente o pipeline de upload e processamento no backend/worker
 
 ## TD-03.4 — Modelo de estados
 
-`DRAFT -> PROCESSING -> READY | ERROR`. Conclusão idempotente não reenfileira um vídeo em `PROCESSING`/`READY`; falha do worker grava `ERROR` após a última tentativa. Não há transição de publicação nesta fase.
+`DRAFT -> PROCESSING -> READY | ERROR`. Conclusão idempotente não duplica jobs existentes nem reenfileira vídeos em `READY`/`ERROR`. Se o enqueue falhar depois da transição atômica para `PROCESSING`, o erro é propagado e uma nova chamada a `complete` recupera o job ausente sem repetir o multipart já concluído. Isso também recupera vídeos presos pelo identificador inválido anterior; não há recuperação automática sem nova chamada a `complete`. Falha do worker grava `ERROR` após a última tentativa. Não há transição de publicação nesta fase.
 
 ## TD-03.5 — URL e streaming
 
@@ -37,6 +39,8 @@ Criação, assinatura e conclusão exigem JWT e pertencimento ao canal do usuár
 ## Referências verificadas
 
 - BullMQ NestJS guide: https://docs.bullmq.io/guide/nestjs/
+- BullMQ custom job IDs: https://docs.bullmq.io/guide/jobs/job-ids
+- BullMQ 6.3.11 validation source: https://github.com/taskforcesh/bullmq/blob/v6.3.11/src/classes/job.ts
 - AWS SDK for JavaScript v3 S3 examples: https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/javascript_s3_code_examples.html
 - `ffprobe` manual: https://ffmpeg.org/ffprobe.html
 - `ffmpeg` manual: https://ffmpeg.org/ffmpeg.html
