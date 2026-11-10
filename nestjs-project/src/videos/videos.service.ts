@@ -140,6 +140,9 @@ export class VideosService {
   ): Promise<{ id: string; status: string }> {
     const video = await this.findOwned(videoId, user.sub);
     if (video.status !== 'DRAFT') {
+      if (video.status === 'PROCESSING') {
+        await this.enqueueProcessing(video.id);
+      }
       return { id: video.id, status: video.status };
     }
     if (!video.upload_id) throw new VideoUploadNotFoundException();
@@ -172,21 +175,35 @@ export class VideosService {
     if (!transition.affected) {
       const current = await this.videoRepository.findOneBy({ id: video.id });
       if (!current) throw new VideoNotFoundException();
+      if (current.status === 'PROCESSING') {
+        await this.enqueueProcessing(current.id);
+      }
       return { id: current.id, status: current.status };
     }
-    await this.queue.add(
-      VIDEO_JOB_NAME,
-      { videoId: video.id },
-      {
-        jobId: `video:${video.id}`,
-        attempts: VIDEO_JOB_ATTEMPTS,
-        backoff: { type: 'exponential', delay: VIDEO_JOB_BACKOFF_MS },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
-    this.logger.log(`Queued video ${video.id} as video:${video.id}`);
+    await this.enqueueProcessing(video.id);
     return { id: video.id, status: 'PROCESSING' };
+  }
+
+  private async enqueueProcessing(videoId: string): Promise<void> {
+    const jobId = `video-${videoId}`;
+    try {
+      if (await this.queue.getJob(jobId)) return;
+      await this.queue.add(
+        VIDEO_JOB_NAME,
+        { videoId },
+        {
+          jobId,
+          attempts: VIDEO_JOB_ATTEMPTS,
+          backoff: { type: 'exponential', delay: VIDEO_JOB_BACKOFF_MS },
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
+      this.logger.log(`Queued video ${videoId} as ${jobId}`);
+    } catch (error) {
+      this.logger.error(`Could not enqueue video ${videoId} as ${jobId}`, error);
+      throw error;
+    }
   }
 
   async getPublicPlayback(

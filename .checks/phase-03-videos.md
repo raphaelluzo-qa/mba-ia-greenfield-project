@@ -10,8 +10,8 @@ Implement only the backend API, worker, Docker infrastructure, migrations, OpenA
 |---|---|---|
 | SI-03.1 | A draft belongs to exactly one authenticated channel and accepts at most 10 GiB; an invalid owner or size returns the standardized domain error. | `videos.service.spec.ts` and `videos.e2e-spec.ts` |
 | SI-03.2 | The create-draft response contains a unique public key and an S3-compatible multipart upload plan without proxying file bytes through the API. | `videos.service.spec.ts` |
-| SI-03.3 | Completing an upload verifies object existence, is idempotent, changes `DRAFT` to `PROCESSING`, and enqueues one deterministic job. | `videos.service.spec.ts` and `videos.service.integration-spec.ts` |
-| SI-03.4 | The worker runs ffprobe/ffmpeg outside the API process, persists duration/metadata/thumbnail, transitions to `READY`, and transitions failures to `ERROR` with retry attempts bounded to three. | `video-processor.service.spec.ts` and `video-worker.integration-spec.ts` |
+| SI-03.3 | Completing an upload verifies object existence, is idempotent, changes `DRAFT` to `PROCESSING`, and enqueues one deterministic BullMQ-valid job; a repeated completion recovers a missing job after enqueue failure. | `videos.service.spec.ts`, `videos.service.integration-spec.ts`, and `videos.e2e-spec.ts` |
+| SI-03.4 | The standalone worker runs ffprobe/ffmpeg, persists duration/metadata/thumbnail, transitions to `READY`, and transitions failures to `ERROR` with retry attempts bounded to three. | Terminal guard: `video-processor.service.spec.ts`; real queue/processing success path: `videos.e2e-spec.ts` (in-process worker); standalone Compose worker and retry exhaustion still require runtime verification. |
 | SI-03.5 | Only the owner can complete or inspect a draft; READY playback/download is public, and missing/not-ready objects return standardized errors. | `videos.e2e-spec.ts` |
 | SI-03.6 | Streaming and download use object-store streams and support byte ranges without buffering the complete object in API memory. | `videos.service.spec.ts` |
 | SI-03.7 | Compose starts PostgreSQL, Redis, MinIO, API, and worker with service-name networking; env validation covers all required storage/queue settings. | `compose.yaml`, `env.validation.integration-spec.ts`, `docker compose config` |
@@ -22,7 +22,7 @@ Implement only the backend API, worker, Docker infrastructure, migrations, OpenA
 
 - Validation: Joi and DTO constraints; maximum is 10 GiB and multipart part size is fixed at 64 MiB.
 - Failure modes: standardized domain exceptions; worker failures are persisted and rethrown to BullMQ for retry.
-- Idempotency/retry: deterministic job id `video:<id>`; completion and processing guard terminal states.
+- Idempotency/retry: deterministic job id `video-<id>` (no `:`); completion preserves existing jobs and recovers missing jobs for `PROCESSING` videos; completion and processing guard terminal states.
 - Authorization: authenticated owner for draft mutations; playback/download only after READY.
 - Concurrency/ordering: database state guards and BullMQ deduplication.
 - Data lifecycle: incomplete drafts expire after 24 hours; failed source/thumbnail objects are removed best-effort after state persistence.

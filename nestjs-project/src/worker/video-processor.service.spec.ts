@@ -17,7 +17,7 @@ describe('VideoProcessorService', () => {
 
     await service.process({
       data: { videoId: 'video-id' },
-      id: 'video:video-id',
+      id: 'video-video-id',
       attemptsMade: 0,
     } as Job<{ videoId: string }>);
 

@@ -32,7 +32,9 @@
 
 ## Events/Messages
 
-Queue `video-processing`; job name `process-video`; payload `{ videoId }`; id `video:<videoId>`; attempts 3; exponential backoff 5s.
+Queue `video-processing`; job name `process-video`; payload `{ videoId }`; id `video-<videoId>`; attempts 3; exponential backoff 5s. BullMQ custom IDs must not contain `:`.
+
+Completion atomically changes `DRAFT` to `PROCESSING` before enqueueing. Queue errors are logged and propagated; repeating completion for a `PROCESSING` video checks the deterministic job ID and recreates a missing job without repeating the completed multipart upload. Existing jobs and terminal `READY`/`ERROR` videos are not re-enqueued.
 
 ## Dependency Map
 
